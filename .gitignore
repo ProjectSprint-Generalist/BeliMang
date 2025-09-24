@@ -1,0 +1,49 @@
+# Go binaries and shared objects
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries (go test -c)
+*.test
+
+# Coverage outputs
+*.out
+coverage.*
+
+# Go workspace files (usually local-only)
+go.work
+go.work.sum
+
+# Build artifacts
+bin/
+dist/
+build/
+
+# Dependency directories (uncomment if you do NOT commit vendor)
+# vendor/
+
+# Environment files (keep examples tracked)
+.env
+.env.*
+!.env.example
+
+# Editor/IDE
+yarn-error.log
+.vscode/
+.idea/
+*.iml
+*.code-workspace
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.log
+*.tmp
+*.swp
+*.swo
+.tmp/
+tmp/
