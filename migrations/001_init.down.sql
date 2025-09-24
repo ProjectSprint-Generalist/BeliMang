@@ -1,0 +1,11 @@
+DROP EXTENSION IF EXISTS postgis;
+DROP EXTENSION IF EXISTS pgcrypto;
+
+DROP TYPE IF EXISTS user_role;
+DROP TYPE IF EXISTS merchant_category;
+DROP TYPE IF EXISTS product_category;
+
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS images;
+DROP TABLE IF EXISTS merchants;
+DROP TABLE IF EXISTS merchant_items;
