@@ -17,7 +17,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_role_email ON users (role, email);
 
 -- User Images table
 CREATE TABLE IF NOT EXISTS images (
-  object_key TEXT PRIMARY KEY,
+  object_key UUID PRIMARY KEY
 );
 
 -- Merchant Enum
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS merchants (
   name TEXT NOT NULL,
   merchant_category merchant_category NOT NULL,
   location GEOMETRY(POINT, 4326) NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Product Enum
