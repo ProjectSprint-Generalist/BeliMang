@@ -84,6 +84,38 @@ func setupGin(cfg *config.Config, pool *pgxpool.Pool) *gin.Engine {
 		c.JSON(201, gin.H{"ok": true})
 	})
 
+	// Mint a debug JWT token from provided payload
+	router.POST("/debug/token", func(c *gin.Context) {
+		var req struct {
+			Username string `json:"username" binding:"required"`
+			Email    string `json:"email" binding:"required"`
+			Role     string `json:"role" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		token, err := middleware.GenerateToken(middleware.AuthUser{
+			Username: req.Username,
+			Email:    req.Email,
+			Role:     req.Role,
+		})
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"token": token})
+	})
+
+	// Protected route example behind IsAuthorized middleware
+	protected := router.Group("/protected")
+	protected.Use(middleware.IsAuthorized())
+	protected.GET("/ping", func(c *gin.Context) {
+		username, _ := c.Get("username")
+		role, _ := c.Get("role")
+		c.JSON(200, gin.H{"ok": true, "username": username, "role": role})
+	})
+
 	port := cfg.Port
 	if port == "" {
 		port = "8080"
