@@ -1,15 +1,14 @@
 package config
 
 import (
-	"fmt"
 	"os"
 )
 
 type Config struct {
 	Environment string
 	Port        string
-	DatabaseURL string
 	JWTSecret   string
+	DB          DBConfig
 	MinIO       MinIOConfig
 }
 
@@ -21,29 +20,53 @@ type MinIOConfig struct {
 	BucketName      string
 }
 
-func LoadConfig() *Config {
+type DBConfig struct {
+	User     string
+	Password string
+	Name     string
+	Host     string
+	Port     string
+	SSLMode  string
+	URL      string
+}
 
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbName := os.Getenv("DB_NAME")
-
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
-
-	cfg := &Config{
-		Environment: os.Getenv("ENVIRONMENT"),
-		Port:        os.Getenv("PORT"),
-		DatabaseURL: dbURL,
-		JWTSecret:   os.Getenv("JWT_SECRET"),
-		MinIO: MinIOConfig{
-			Endpoint:        os.Getenv("MINIO_ENDPOINT"),
-			AccessKeyID:     os.Getenv("MINIO_ACCESS_KEY"),
-			SecretAccessKey: os.Getenv("MINIO_SECRET_KEY"),
-			UseSSL:          os.Getenv("MINIO_USE_SSL") == "true",
-			BucketName:      os.Getenv("MINIO_BUCKET_NAME"),
-		},
+// getEnv gets an environment variable or returns a default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
+	return defaultValue
+}
 
+func LoadConfig() *Config {
+	cfg := &Config{
+		Environment: getEnv("ENVIRONMENT", "development"),
+		Port:        getEnv("PORT", "8080"),
+		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
+		DB:          *LoadDBConfig(),
+		MinIO:       *LoadMinIOConfig(),
+	}
 	return cfg
+}
+
+func LoadDBConfig() *DBConfig {
+	return &DBConfig{
+		User:     getEnv("DB_USER", "postgres"),
+		Password: getEnv("DB_PASSWORD", "postgres"),
+		Name:     getEnv("DB_NAME", "belimang"),
+		Host:     getEnv("DB_HOST", "localhost"),
+		Port:     getEnv("DB_PORT", "5432"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
+		URL:      getEnv("DATABASE_URL", ""),
+	}
+}
+
+func LoadMinIOConfig() *MinIOConfig {
+	return &MinIOConfig{
+		Endpoint:        getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		AccessKeyID:     getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+		SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
+		UseSSL:          getEnv("MINIO_USE_SSL", "false") == "true",
+		BucketName:      getEnv("MINIO_BUCKET_NAME", "belimang-files"),
+	}
 }

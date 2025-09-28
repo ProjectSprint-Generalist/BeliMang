@@ -1,23 +1,47 @@
 services:
   # Databases
   db:
-    image: postgres:17.6
-    restart: always
+    image: postgis/postgis:18-3.6
+    # restart: always
     ports:
       - 5432:5432
     environment:
-      POSTGRES_PASSWORD: rahasiahehe
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: belimang
+      POSTGRES_SSLMODE: disable
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   # PostgreSQL's simple web interface
   adminer:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - 8082:8080
+
+  # Go API service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: development
+      PORT: 8080
+      DATABASE_URL: postgres://postgres:postgres@db:5432/belimang?sslmode=disable
+    ports:
+      - 8080:8080
 
 volumes:
   pgdata:
