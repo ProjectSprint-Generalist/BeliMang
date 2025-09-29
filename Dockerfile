@@ -26,6 +26,7 @@ FROM gcr.io/distroless/base-debian12:nonroot
 WORKDIR /
 
 COPY --from=builder /bin/belimang /belimang
+COPY --from=builder /app/migrations /migrations
 
 ENV PORT=8080
 EXPOSE 8080

@@ -7,11 +7,18 @@ import (
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/config"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/db"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/middleware"
+
 	"github.com/gin-gonic/gin"
+
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/joho/godotenv"
+
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
@@ -26,6 +33,7 @@ func main() {
 	}
 
 	pool := setupDatabase(cfg)
+
 	defer pool.Close()
 
 	router := setupGin(cfg, pool)
@@ -151,5 +159,20 @@ func setupDatabase(cfg *config.Config) *pgxpool.Pool {
 		log.Fatal().Msgf("Failed to ping database: %v", err)
 	}
 
+	migrateDatabase(cfg)
+
 	return pool
+}
+
+func migrateDatabase(cfg *config.Config) {
+	m, err := migrate.New(
+		"file://migrations/",
+		cfg.DB.URL,
+	)
+	if err != nil {
+		log.Fatal().Msgf("Failed to create migrate instance: %v", err)
+	}
+	if err := m.Up(); err != nil {
+		log.Fatal().Msgf("Failed to run migrations: %v", err)
+	}
 }
