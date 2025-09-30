@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/config"
-	"github.com/ProjectSprint-Generalist/BeliMang/internal/db"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -41,80 +40,8 @@ func setupGin(cfg *config.Config, pool *pgxpool.Pool) *gin.Engine {
 	// router.Use(middleware.Recovery())
 
 	// TODO: Add Route handlers
-	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "ok",
-		})
-	})
-
-	// Database ping
-	router.GET("/db/ping", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-		defer cancel()
-		if err := pool.Ping(ctx); err != nil {
-			c.JSON(500, gin.H{"ok": false, "error": err.Error()})
-			return
-		}
-		c.JSON(200, gin.H{"ok": true})
-	})
-
-	// Simple user creation (debug)
-	router.POST("/debug/users", func(c *gin.Context) {
-		var req struct {
-			Username string `json:"username" binding:"required"`
-			Password string `json:"password" binding:"required"`
-			Email    string `json:"email" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
-			return
-		}
-
-		queries := db.New(pool)
-		if err := queries.CreateUser(c.Request.Context(), db.CreateUserParams{
-			Username: req.Username,
-			Password: req.Password,
-			Email:    req.Email,
-		}); err != nil {
-			c.JSON(500, gin.H{"ok": false, "error": err.Error()})
-			return
-		}
-
-		c.JSON(201, gin.H{"ok": true})
-	})
-
-	// Mint a debug JWT token from provided payload
-	router.POST("/debug/token", func(c *gin.Context) {
-		var req struct {
-			Username string `json:"username" binding:"required"`
-			Email    string `json:"email" binding:"required"`
-			Role     string `json:"role" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
-			return
-		}
-		token, err := middleware.GenerateToken(middleware.AuthUser{
-			Username: req.Username,
-			Email:    req.Email,
-			Role:     req.Role,
-		})
-		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(200, gin.H{"token": token})
-	})
-
-	// Protected route example behind IsAuthorized middleware
-	protected := router.Group("/protected")
-	protected.Use(middleware.IsAuthorized())
-	protected.GET("/ping", func(c *gin.Context) {
-		username, _ := c.Get("username")
-		role, _ := c.Get("role")
-		c.JSON(200, gin.H{"ok": true, "username": username, "role": role})
-	})
+	// ...Handler := handlers.New...Handler()
+	// routes.SetupRoutes(router, ...Handler)
 
 	port := cfg.Port
 	if port == "" {
