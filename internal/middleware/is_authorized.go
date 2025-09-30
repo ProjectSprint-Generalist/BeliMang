@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ProjectSprint-Generalist/BeliMang/internal/types"
+	"github.com/ProjectSprint-Generalist/BeliMang/internal/dto"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,7 +12,8 @@ func IsAuthorized() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		authHeader := context.GetHeader("Authorization")
 		if authHeader == "" {
-			response := types.ErrorResponse{
+
+			response := dto.ErrorResponse{
 				Success: false,
 				Error:   "Authorization header required",
 				Code:    http.StatusUnauthorized,
@@ -29,7 +30,7 @@ func IsAuthorized() gin.HandlerFunc {
 
 		claims, err := ParseToken(tokenString)
 		if err != nil {
-			response := types.ErrorResponse{
+			response := dto.ErrorResponse{
 				Success: false,
 				Error:   "Invalid or expired token",
 				Code:    http.StatusUnauthorized,

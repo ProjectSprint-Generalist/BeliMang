@@ -6,23 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/ProjectSprint-Generalist/BeliMang/internal/dto"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type AuthUser struct {
-	Username string
-	Email    string
-	Role     string
-}
-
-type JWTClaim struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Role     string `json:"role"`
-	jwt.RegisteredClaims
-}
-
-func GenerateToken(user AuthUser) (string, error) {
+func GenerateToken(user dto.AuthUser) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", fmt.Errorf("JWT_SECRET not set")
@@ -30,7 +18,7 @@ func GenerateToken(user AuthUser) (string, error) {
 
 	expiresAt := time.Now().Add(30 * time.Minute)
 
-	claims := &JWTClaim{
+	claims := &dto.JWTClaim{
 		Username: user.Username,
 		Email:    user.Email,
 		Role:     user.Role,
@@ -52,20 +40,20 @@ func GenerateToken(user AuthUser) (string, error) {
 }
 
 // ParseToken verifies and parses the JWT, returning its claims.
-func ParseToken(tokenString string) (*JWTClaim, error) {
+func ParseToken(tokenString string) (*dto.JWTClaim, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return nil, fmt.Errorf("JWT_SECRET not set")
 	}
 
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &dto.JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(*JWTClaim)
+	claims, ok := token.Claims.(*dto.JWTClaim)
 	if !ok || !token.Valid {
 		return nil, errors.New("invalid token")
 	}

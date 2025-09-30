@@ -1,11 +1,14 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/ProjectSprint-Generalist/BeliMang/internal/handlers"
+	"github.com/gin-gonic/gin"
+)
 
-func SetupRoutes(router *gin.Engine) {
+func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler) {
 	admin := router.Group("/admin")
 	{
-		// admin.POST("/register", ...)
+		admin.POST("/register", adminHandler.RegisterAdmin)
 		// admin.POST("/login", ...)
 		// ...
 	}
