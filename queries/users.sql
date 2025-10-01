@@ -13,4 +13,7 @@ INSERT INTO users (
 );
 
 -- name: GetAdminByUsername :one
-SELECT * FROM users where username = $1;
+SELECT * FROM users where username = $1 AND role = 'admin';
+
+-- name: GetUserByUsername :one
+SELECT * FROM users where username = $1 AND role = 'user';
