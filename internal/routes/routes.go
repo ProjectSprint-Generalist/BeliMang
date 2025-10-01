@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler) {
+func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHandler *handlers.UserHandler) {
 	admin := router.Group("/admin")
 	{
 		admin.POST("/register", adminHandler.RegisterAdmin)
@@ -15,9 +15,8 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler) {
 
 	users := router.Group("/users")
 	{
-		// users.POST("/register", ...)
-		// users.POST("/login", ...)
-		// ...
+		users.POST("/register", userHandler.RegisterUser)
+		users.POST("/login", userHandler.LoginUser)
 	}
 
 	// router.POST("/image", ...)
