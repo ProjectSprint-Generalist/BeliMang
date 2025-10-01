@@ -15,7 +15,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d belimang -h localhost"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -36,11 +36,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      ENVIRONMENT: development
-      PORT: 8080
-      DATABASE_URL: postgres://postgres:postgres@db:5432/belimang?sslmode=disable
-      JWT_SECRET: your-secret-key
+    env_file:
+      - .env
     ports:
       - 8080:8080
 
