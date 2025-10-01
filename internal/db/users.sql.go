@@ -46,3 +46,19 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser, arg.Username, arg.Password, arg.Email)
 	return err
 }
+
+const getAdminByUsername = `-- name: GetAdminByUsername :one
+SELECT username, password, email, role FROM users where username = $1
+`
+
+func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, getAdminByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.Username,
+		&i.Password,
+		&i.Email,
+		&i.Role,
+	)
+	return i, err
+}

@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/config"
+	"github.com/ProjectSprint-Generalist/BeliMang/internal/handlers"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/middleware"
-
+	"github.com/ProjectSprint-Generalist/BeliMang/internal/routes"
 	"github.com/gin-gonic/gin"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -48,8 +49,9 @@ func setupGin(cfg *config.Config, pool *pgxpool.Pool) *gin.Engine {
 	// router.Use(middleware.Recovery())
 
 	// TODO: Add Route handlers
+	adminHandler := handlers.NewAdminHandler(pool)
 	// ...Handler := handlers.New...Handler()
-	// routes.SetupRoutes(router, ...Handler)
+	routes.SetupRoutes(router, adminHandler)
 
 	port := cfg.Port
 	if port == "" {
@@ -71,9 +73,11 @@ func setupDatabase(cfg *config.Config) *pgxpool.Pool {
 		log.Fatal().Msgf("Failed to parse database URL: %v", err)
 	}
 
-	pgxConfig.MaxConns = 10
-	pgxConfig.MinConns = 2
-	pgxConfig.MaxConnLifetime = 30 * time.Minute
+	pgxConfig.MaxConns = 50
+	pgxConfig.MinConns = 20
+	pgxConfig.MaxConnIdleTime = 5 * time.Minute
+	pgxConfig.MaxConnLifetimeJitter = 1 * time.Minute
+	pgxConfig.MaxConnLifetime = 10 * time.Minute
 	pgxConfig.HealthCheckPeriod = 1 * time.Minute
 
 	pool, err := pgxpool.NewWithConfig(ctx, pgxConfig)

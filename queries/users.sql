@@ -11,3 +11,6 @@ INSERT INTO users (
 ) VALUES (
   $1, $2, $3, 'user'
 );
+
+-- name: GetAdminByUsername :one
+SELECT * FROM users where username = $1;
