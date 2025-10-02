@@ -7,14 +7,16 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createMerchant = `-- name: CreateMerchant :exec
+const createMerchant = `-- name: CreateMerchant :one
 INSERT INTO merchants (
   name, merchant_category, image_url, location
 ) VALUES (
   $1, $2, $3, $4
-)
+) RETURNING id
 `
 
 type CreateMerchantParams struct {
@@ -24,12 +26,14 @@ type CreateMerchantParams struct {
 	Location         interface{}
 }
 
-func (q *Queries) CreateMerchant(ctx context.Context, arg CreateMerchantParams) error {
-	_, err := q.db.Exec(ctx, createMerchant,
+func (q *Queries) CreateMerchant(ctx context.Context, arg CreateMerchantParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createMerchant,
 		arg.Name,
 		arg.MerchantCategory,
 		arg.ImageUrl,
 		arg.Location,
 	)
-	return err
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
