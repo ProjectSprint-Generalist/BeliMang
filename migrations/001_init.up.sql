@@ -17,7 +17,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_role_email ON users (role, email);
 
 -- User Images table
 CREATE TABLE IF NOT EXISTS images (
-  object_key UUID PRIMARY KEY
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  filename TEXT NOT NULL,
+  url TEXT NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Merchant Enum
