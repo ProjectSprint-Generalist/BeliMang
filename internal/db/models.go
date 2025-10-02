@@ -158,6 +158,7 @@ type Merchant struct {
 	MerchantCategory MerchantCategory
 	Location         interface{}
 	CreatedAt        pgtype.Timestamptz
+	ImageUrl         string
 }
 
 type MerchantItem struct {
