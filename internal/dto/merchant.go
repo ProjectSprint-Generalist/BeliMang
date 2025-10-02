@@ -24,5 +24,5 @@ type MerchantCreateRequest struct {
 }
 
 type MerchantCreateResponse struct {
-	MerchantID string `json:"merchantID"`
+	MerchantId string `json:"merchantId"`
 }
