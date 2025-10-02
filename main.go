@@ -50,7 +50,8 @@ func setupGin(cfg *config.Config, pool *pgxpool.Pool) *gin.Engine {
 
 	adminHandler := handlers.NewAdminHandler(pool)
 	userHandler := handlers.NewUserHandler(pool)
-	routes.SetupRoutes(router, adminHandler, userHandler)
+	merchantHandler := handlers.NewMerchantHandler(pool)
+	routes.SetupRoutes(router, adminHandler, userHandler, merchantHandler)
 
 	port := cfg.Port
 	if port == "" {
@@ -103,6 +104,6 @@ func migrateDatabase(cfg *config.Config) {
 		log.Fatal().Msgf("Failed to create migrate instance: %v", err)
 	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-        log.Fatal().Msgf("Failed to run migrations: %v", err)
-    }
+		log.Fatal().Msgf("Failed to run migrations: %v", err)
+	}
 }
