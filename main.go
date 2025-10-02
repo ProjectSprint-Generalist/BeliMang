@@ -8,6 +8,7 @@ import (
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/handlers"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/middleware"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/routes"
+	"github.com/ProjectSprint-Generalist/BeliMang/internal/storage"
 	"github.com/gin-gonic/gin"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,11 +37,16 @@ func main() {
 
 	defer pool.Close()
 
-	router := setupGin(cfg, pool)
+	minioClient, err := storage.NewMinioClient(&cfg.MinIO)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init minio")
+	}
+
+	router := setupGin(cfg, pool, minioClient)
 	router.Run(":" + cfg.Port)
 }
 
-func setupGin(cfg *config.Config, pool *pgxpool.Pool) *gin.Engine {
+func setupGin(cfg *config.Config, pool *pgxpool.Pool, minioClient *storage.MinioClient) *gin.Engine {
 	router := gin.New()
 
 	// TODO: Add recovery middleware
@@ -51,7 +57,8 @@ func setupGin(cfg *config.Config, pool *pgxpool.Pool) *gin.Engine {
 	adminHandler := handlers.NewAdminHandler(pool)
 	userHandler := handlers.NewUserHandler(pool)
 	merchantHandler := handlers.NewMerchantHandler(pool)
-	routes.SetupRoutes(router, adminHandler, userHandler, merchantHandler)
+  imageHandler := handlers.NewImageHandler(pool, minioClient)
+	routes.SetupRoutes(router, adminHandler, userHandler, merchantHandler, imageHandler)
 
 	port := cfg.Port
 	if port == "" {

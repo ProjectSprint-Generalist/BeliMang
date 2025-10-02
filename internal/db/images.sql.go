@@ -11,26 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getImage = `-- name: GetImage :one
-SELECT object_key FROM images WHERE object_key = $1
+const createImage = `-- name: CreateImage :one
+INSERT INTO images (id, filename, url, size_bytes)
+VALUES ($1, $2, $3, $4)
+RETURNING id, filename, url, size_bytes, created_at
 `
 
-func (q *Queries) GetImage(ctx context.Context, objectKey pgtype.UUID) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, getImage, objectKey)
-	var object_key pgtype.UUID
-	err := row.Scan(&object_key)
-	return object_key, err
+type CreateImageParams struct {
+	ID        pgtype.UUID
+	Filename  string
+	Url       string
+	SizeBytes int64
 }
 
-const insertImage = `-- name: InsertImage :exec
-INSERT INTO images (
-  object_key
-) VALUES (
-  $1
-)
+func (q *Queries) CreateImage(ctx context.Context, arg CreateImageParams) (Image, error) {
+	row := q.db.QueryRow(ctx, createImage,
+		arg.ID,
+		arg.Filename,
+		arg.Url,
+		arg.SizeBytes,
+	)
+	var i Image
+	err := row.Scan(
+		&i.ID,
+		&i.Filename,
+		&i.Url,
+		&i.SizeBytes,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getImage = `-- name: GetImage :one
+SELECT id, filename, url, size_bytes, created_at FROM images WHERE id = $1
 `
 
-func (q *Queries) InsertImage(ctx context.Context, objectKey pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, insertImage, objectKey)
-	return err
+func (q *Queries) GetImage(ctx context.Context, id pgtype.UUID) (Image, error) {
+	row := q.db.QueryRow(ctx, getImage, id)
+	var i Image
+	err := row.Scan(
+		&i.ID,
+		&i.Filename,
+		&i.Url,
+		&i.SizeBytes,
+		&i.CreatedAt,
+	)
+	return i, err
 }
