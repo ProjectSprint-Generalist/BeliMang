@@ -14,6 +14,8 @@ services:
       POSTGRES_SSLMODE: disable
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - belimang-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d belimang -h localhost"]
       interval: 5s
@@ -27,6 +29,24 @@ services:
     restart: always
     ports:
       - 8082:8080
+    networks:
+      - belimang-network
+
+  # MinIO
+  minio:
+    image: minio/minio:latest
+    container_name: belimang-minio
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - belimang-network
+    command: server /data --console-address ":9001"
 
   # Go API service
   app:
@@ -40,6 +60,16 @@ services:
       - .env
     ports:
       - 8080:8080
+    volumes:
+      - ./app:/app 
+    networks:
+      - belimang-network
 
 volumes:
   pgdata:
+  minio_data:
+
+networks:
+  belimang-network:
+    driver: bridge
+
