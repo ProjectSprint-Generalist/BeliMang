@@ -138,10 +138,11 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 	// Get total count
 	total, err := queries.CountMerchants(ctx, queryParams)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+		statusCode, errorMessage := shared.ParseDBResult(err)
+		c.JSON(statusCode, dto.ErrorResponse{
 			Success: false,
-			Error:   "Failed to fetch merchants count",
-			Code:    http.StatusInternalServerError,
+			Error:   errorMessage,
+			Code:    statusCode,
 		})
 		return
 	}
@@ -149,10 +150,11 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 	// Get merchants
 	merchants, err := queries.GetMerchants(ctx, queryParams)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+		statusCode, errorMessage := shared.ParseDBResult(err)
+		c.JSON(statusCode, dto.ErrorResponse{
 			Success: false,
-			Error:   "Failed to fetch merchants",
-			Code:    http.StatusInternalServerError,
+			Error:   errorMessage,
+			Code:    statusCode,
 		})
 		return
 	}
@@ -175,7 +177,7 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 				Lat:  m.Lat,
 				Long: m.Long,
 			},
-			CreatedAt: m.CreatedAt.Time.Format("2006-01-02T15:04:05.999999999Z07:00"),
+			CreatedAt: m.CreatedAt.Time.Format(shared.ISO8601WithNanoseconds),
 		})
 	}
 
