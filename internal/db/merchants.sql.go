@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -36,4 +38,148 @@ func (q *Queries) CreateMerchant(ctx context.Context, arg CreateMerchantParams) 
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+type MerchantQueryParams struct {
+	MerchantID       string
+	Name             string
+	MerchantCategory string
+	CreatedAt        string
+	Limit            int32
+	Offset           int32
+}
+
+type MerchantQueryResult struct {
+	ID               pgtype.UUID
+	Name             string
+	MerchantCategory MerchantCategory
+	ImageURL         string
+	Lat              float64
+	Long             float64
+	CreatedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) GetMerchants(ctx context.Context, arg MerchantQueryParams) ([]MerchantQueryResult, error) {
+	baseQuery := `
+		SELECT
+			m.ID,
+			m.Name,
+			m.MerchantCategory,
+			COALESCE(m.ImageUrl, '') as ImageURL,
+			ST_Y(m.Location::geometry) as Lat,
+			ST_X(m.Location::geometry) as Long,
+			m.CreatedAt
+		FROM Merchants m
+	`
+
+	counter := 1
+	var conditions []string
+	var args []interface{}
+
+	// Filter by merchantId
+	if arg.MerchantID != "" {
+		conditions = append(conditions, fmt.Sprintf("m.ID = $%d", counter))
+		args = append(args, arg.MerchantID)
+		counter++
+	}
+
+	// Filter by name with wildcard search (case insensitive)
+	if arg.Name != "" {
+		conditions = append(conditions, fmt.Sprintf("LOWER(m.Name) LIKE LOWER($%d)", counter))
+		args = append(args, "%"+arg.Name+"%")
+		counter++
+	}
+
+	// Filter by merchantCategory
+	if arg.MerchantCategory != "" {
+		conditions = append(conditions, fmt.Sprintf("m.MerchantCategory = $%d", counter))
+		args = append(args, arg.MerchantCategory)
+		counter++
+	}
+
+	// Build WHERE clause
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Sort by createdAt
+	if arg.CreatedAt == "asc" {
+		baseQuery += " ORDER BY m.CreatedAt ASC"
+	} else {
+		baseQuery += " ORDER BY m.CreatedAt DESC"
+	}
+
+	// Add pagination
+	baseQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", counter, counter+1)
+	args = append(args, arg.Limit, arg.Offset)
+
+	rows, err := q.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []MerchantQueryResult
+	for rows.Next() {
+		var r MerchantQueryResult
+		if err := rows.Scan(
+			&r.ID,
+			&r.Name,
+			&r.MerchantCategory,
+			&r.ImageURL,
+			&r.Lat,
+			&r.Long,
+			&r.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (q *Queries) CountMerchants(ctx context.Context, arg MerchantQueryParams) (int, error) {
+	baseQuery := `
+		SELECT COUNT(*)
+		FROM Merchants m
+	`
+
+	counter := 1
+	var conditions []string
+	var args []interface{}
+
+	// Filter by merchantId
+	if arg.MerchantID != "" {
+		conditions = append(conditions, fmt.Sprintf("m.ID = $%d", counter))
+		args = append(args, arg.MerchantID)
+		counter++
+	}
+
+	// Filter by name with wildcard search (case insensitive)
+	if arg.Name != "" {
+		conditions = append(conditions, fmt.Sprintf("LOWER(m.Name) LIKE LOWER($%d)", counter))
+		args = append(args, "%"+arg.Name+"%")
+		counter++
+	}
+
+	// Filter by merchantCategory
+	if arg.MerchantCategory != "" {
+		conditions = append(conditions, fmt.Sprintf("m.MerchantCategory = $%d", counter))
+		args = append(args, arg.MerchantCategory)
+		counter++
+	}
+
+	// Build WHERE clause
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	var total int
+	err := q.db.QueryRow(ctx, baseQuery, args...).Scan(&total)
+	return total, err
 }

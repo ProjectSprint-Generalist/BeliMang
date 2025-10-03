@@ -15,6 +15,7 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 
 		merchant := admin.Group("/merchants")
 		{
+			merchant.GET("", merchantHandler.GetMerchants)
 			merchant.POST("/", merchantHandler.CreateMerchant)
 		}
 	}
