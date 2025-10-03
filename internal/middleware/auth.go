@@ -3,10 +3,13 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/dto"
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -59,4 +62,37 @@ func ParseToken(tokenString string) (*dto.JWTClaim, error) {
 	}
 
 	return claims, nil
+}
+
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				Success: false,
+				Error:   "Authorization header required",
+				Code:    http.StatusUnauthorized,
+			})
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		claims, err := ParseToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				Success: false,
+				Error:   "Invalid or expired token",
+				Code:    http.StatusUnauthorized,
+			})
+			c.Abort()
+			return
+		}
+
+		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
+
+		c.Next()
+	}
 }

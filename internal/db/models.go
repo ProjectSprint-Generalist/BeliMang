@@ -145,7 +145,11 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Image struct {
-	ObjectKey pgtype.UUID
+	ID        pgtype.UUID
+	Filename  string
+	Url       string
+	SizeBytes int64
+	CreatedAt pgtype.Timestamptz
 }
 
 type Merchant struct {
@@ -154,6 +158,7 @@ type Merchant struct {
 	MerchantCategory MerchantCategory
 	Location         interface{}
 	CreatedAt        pgtype.Timestamptz
+	ImageUrl         string
 }
 
 type MerchantItem struct {
