@@ -18,6 +18,8 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 		{
 			merchant.GET("", merchantHandler.GetMerchants)
 			merchant.POST("/", merchantHandler.CreateMerchant)
+			merchant.GET("/:merchantId/items", merchantHandler.GetMerchantItems)
+			merchant.POST("/:merchantId/items", merchantHandler.CreateMerchantItem)
 		}
 	}
 
