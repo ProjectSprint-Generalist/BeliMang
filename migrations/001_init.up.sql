@@ -7,12 +7,15 @@ CREATE TYPE user_role AS ENUM ('user', 'admin');
 
 -- User table
 CREATE TABLE IF NOT EXISTS users (
-  username TEXT PRIMARY KEY CHECK (char_length(username) BETWEEN 2 AND 30),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username TEXT NOT NULL,
   password TEXT NOT NULL,
   email TEXT NOT NULL,
   role user_role NOT NULL DEFAULT 'user'
 );
--- Unique constraint on email per role
+-- Unique constraint on username for all roles
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (username);
+-- Unique constraint on email per role (allows same email for different roles)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_role_email ON users (role, email);
 
 -- User Images table

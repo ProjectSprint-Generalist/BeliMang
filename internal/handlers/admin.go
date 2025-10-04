@@ -52,7 +52,6 @@ func (h *AdminHandler) RegisterAdmin(c *gin.Context) {
 		Password: hashedPassword,
 		Email:    payload.Email,
 	})
-
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -120,7 +119,7 @@ func (h *AdminHandler) LoginAdmin(c *gin.Context) {
 	}
 
 	token, err := middleware.GenerateToken(dto.AuthUser{
-		Username: fetchedAdmin.Password,
+		Username: fetchedAdmin.Username,
 		Email:    fetchedAdmin.Email,
 		Role:     "admin",
 	})

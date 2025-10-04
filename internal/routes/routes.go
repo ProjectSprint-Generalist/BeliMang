@@ -10,8 +10,7 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 	admin := router.Group("/admin")
 	{
 		admin.POST("/register", adminHandler.RegisterAdmin)
-		// admin.POST("/login", ...)
-		// ...
+		admin.POST("/login", adminHandler.LoginAdmin)
 
 		merchant := admin.Group("/merchants")
 		merchant.Use(middleware.AuthMiddleware(), middleware.IsAuthorized("admin"))
