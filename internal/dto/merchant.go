@@ -16,6 +16,16 @@ const (
 	ConvenienceStore      MerchantCategory = "ConvenienceStore"
 )
 
+// ValidMerchantCategories contains all valid merchant category values
+var ValidMerchantCategories = map[MerchantCategory]bool{
+	SmallRestaurant:       true,
+	MediumRestaurant:      true,
+	LargeRestaurant:       true,
+	MerchandiseRestaurant: true,
+	BoothKiosk:            true,
+	ConvenienceStore:      true,
+}
+
 type MerchantCreateRequest struct {
 	Name             string           `json:"name" binding:"required,min=2,max=30"`
 	MerchantCategory MerchantCategory `json:"merchantCategory" binding:"required"`

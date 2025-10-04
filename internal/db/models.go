@@ -168,9 +168,11 @@ type MerchantItem struct {
 	ProductCategory ProductCategory
 	Price           int32
 	CreatedAt       pgtype.Timestamptz
+	ImageUrl        string
 }
 
 type User struct {
+	ID       pgtype.UUID
 	Username string
 	Password string
 	Email    string
