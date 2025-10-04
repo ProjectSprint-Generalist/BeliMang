@@ -427,3 +427,239 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 		},
 	})
 }
+
+func (h *MerchantHandler) GetNearbyMerchants(c *gin.Context) {
+	// Path param in the form ":coords" where value is "lat,long"
+	coords := c.Param("coords")
+	var lat, long float64
+	if coords != "" {
+		// Expecting "lat,long"
+		commaIdx := -1
+		for i := 0; i < len(coords); i++ {
+			if coords[i] == ',' {
+				commaIdx = i
+				break
+			}
+		}
+		if commaIdx <= 0 || commaIdx >= len(coords)-1 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Success: false,
+				Error:   "lat/long is not valid",
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+		latStr := coords[:commaIdx]
+		longStr := coords[commaIdx+1:]
+		latParsed, err1 := strconv.ParseFloat(latStr, 64)
+		longParsed, err2 := strconv.ParseFloat(longStr, 64)
+		if err1 != nil || err2 != nil {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Success: false,
+				Error:   "lat/long is not valid",
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+		if latParsed < -90 || latParsed > 90 || longParsed < -180 || longParsed > 180 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Success: false,
+				Error:   "lat/long is not valid",
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+		lat = latParsed
+		long = longParsed
+	} else {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "lat/long is not valid",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	merchantId := c.Query("merchantId")
+	name := c.Query("name")
+	merchantCategory := c.Query("merchantCategory")
+
+	// Parse limit and offset with defaults
+	limit := int32(5)
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if val, err := strconv.ParseInt(limitStr, 10, 32); err == nil && val > 0 {
+			limit = int32(val)
+		}
+	}
+
+	offset := int32(0)
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if val, err := strconv.ParseInt(offsetStr, 10, 32); err == nil && val >= 0 {
+			offset = int32(val)
+		}
+	}
+
+	queries := db.New(h.pool)
+	ctx := context.Background()
+
+	// Validate merchantCategory if provided
+	validCategories := map[string]bool{
+		"SmallRestaurant":       true,
+		"MediumRestaurant":      true,
+		"LargeRestaurant":       true,
+		"MerchandiseRestaurant": true,
+		"BoothKiosk":            true,
+		"ConvenienceStore":      true,
+	}
+	if merchantCategory != "" && !validCategories[merchantCategory] {
+		c.JSON(http.StatusOK, dto.GetNearbyMerchantsResponse{
+			Data: []dto.NearbyMerchant{},
+			Meta: dto.MerchantMeta{
+				Limit:  int(limit),
+				Offset: int(offset),
+				Total:  0,
+			},
+		})
+		return
+	}
+
+	// Validate merchantId if provided (invalid -> 200 empty)
+	if merchantId != "" {
+		var tempUUID pgtype.UUID
+		if err := tempUUID.Scan(merchantId); err != nil {
+			c.JSON(http.StatusOK, dto.GetNearbyMerchantsResponse{
+				Data: []dto.NearbyMerchant{},
+				Meta: dto.MerchantMeta{
+					Limit:  int(limit),
+					Offset: int(offset),
+					Total:  0,
+				},
+			})
+			return
+		}
+	}
+
+	// Prepare optional filter params for sqlc narg
+	var merchantIDText pgtype.Text
+	if merchantId != "" {
+		merchantIDText = pgtype.Text{String: merchantId, Valid: true}
+	}
+	var nameText pgtype.Text
+	if name != "" {
+		nameText = pgtype.Text{String: name, Valid: true}
+	}
+	var categoryText pgtype.Text
+	if merchantCategory != "" {
+		categoryText = pgtype.Text{String: merchantCategory, Valid: true}
+	}
+
+	total, err := queries.CountNearbyMerchants(ctx, db.CountNearbyMerchantsParams{
+		MerchantID:       merchantIDText,
+		MerchantCategory: categoryText,
+		Name:             nameText,
+	})
+	if err != nil {
+		statusCode, errorMessage := shared.ParseDBResult(err)
+		c.JSON(statusCode, dto.ErrorResponse{
+			Success: false,
+			Error:   errorMessage,
+			Code:    statusCode,
+		})
+		return
+	}
+
+	rows, err := queries.GetNearbyMerchants(ctx, db.GetNearbyMerchantsParams{
+		Lat:              lat,
+		Long:             long,
+		MerchantID:       merchantIDText,
+		MerchantCategory: categoryText,
+		Name:             nameText,
+		RowLimit:         limit,
+		RowOffset:        offset,
+	})
+	if err != nil {
+		statusCode, errorMessage := shared.ParseDBResult(err)
+		c.JSON(statusCode, dto.ErrorResponse{
+			Success: false,
+			Error:   errorMessage,
+			Code:    statusCode,
+		})
+		return
+	}
+
+	// Assemble response with items per merchant
+	resp := make([]dto.NearbyMerchant, 0, len(rows))
+	for _, m := range rows {
+		// Convert UUID to string
+		merchantIDStr := ""
+		if m.ID.Valid {
+			merchantIDStr = pgtype.UUID{Bytes: m.ID.Bytes, Valid: true}.String()
+		}
+
+		lat64, _ := m.Lat.(float64)
+		long64, _ := m.Long.(float64)
+
+		merchantData := dto.MerchantData{
+			MerchantID:       merchantIDStr,
+			Name:             m.Name,
+			MerchantCategory: string(m.MerchantCategory),
+			ImageURL:         m.ImageUrl,
+			Location: dto.Location{
+				Lat:  lat64,
+				Long: long64,
+			},
+			CreatedAt: m.CreatedAt.Time.Format(shared.ISO8601WithNanoseconds),
+		}
+
+		// Fetch items for this merchant (no extra filters), unpaged
+		items, err := queries.GetMerchantItems(ctx, db.MerchantItemQueryParams{
+			MerchantID: merchantIDStr,
+			ItemID:     "",
+			Name:       "",
+			// include all product categories
+			ProductCategory: "",
+			CreatedAt:       "desc",
+			Limit:           1000,
+			Offset:          0,
+		})
+		if err != nil {
+			statusCode, errorMessage := shared.ParseDBResult(err)
+			c.JSON(statusCode, dto.ErrorResponse{
+				Success: false,
+				Error:   errorMessage,
+				Code:    statusCode,
+			})
+			return
+		}
+
+		itemData := make([]dto.MerchantItemData, 0, len(items))
+		for _, it := range items {
+			itemIDStr := ""
+			if it.ID.Valid {
+				itemIDStr = pgtype.UUID{Bytes: it.ID.Bytes, Valid: true}.String()
+			}
+			itemData = append(itemData, dto.MerchantItemData{
+				ItemId:          itemIDStr,
+				Name:            it.Name,
+				ProductCategory: string(it.ProductCategory),
+				Price:           int(it.Price),
+				ImageURL:        it.ImageURL,
+				CreatedAt:       it.CreatedAt.Time.Format(shared.ISO8601WithNanoseconds),
+			})
+		}
+
+		resp = append(resp, dto.NearbyMerchant{
+			Merchant: merchantData,
+			Items:    itemData,
+		})
+	}
+
+	c.JSON(http.StatusOK, dto.GetNearbyMerchantsResponse{
+		Data: resp,
+		Meta: dto.MerchantMeta{
+			Limit:  int(limit),
+			Offset: int(offset),
+			Total:  int(total),
+		},
+	})
+}

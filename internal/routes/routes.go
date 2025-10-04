@@ -35,5 +35,11 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 		image.POST("", imageHandler.UploadImage)
 	}
 
-	// router.GET("/merchants/nearby/:lat/:long", ...)
+	// Nearby merchants endpoint
+	merchants := router.Group("/merchants")
+	merchants.Use(middleware.AuthMiddleware())
+	{
+		// Path pattern: /merchants/nearby/:coords where :coords is "lat,long"
+		merchants.GET("/nearby/:coords", merchantHandler.GetNearbyMerchants)
+	}
 }
