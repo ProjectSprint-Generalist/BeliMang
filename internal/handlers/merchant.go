@@ -40,7 +40,8 @@ func (h *MerchantHandler) CreateMerchant(c *gin.Context) {
 		Name:             payload.Name,
 		MerchantCategory: db.MerchantCategory(payload.MerchantCategory),
 		ImageUrl:         payload.ImageURL,
-		Location:         payload.Location,
+		StMakepoint:      payload.Location.Long,
+		StMakepoint_2:    payload.Location.Lat,
 	})
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
