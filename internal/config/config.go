@@ -65,7 +65,7 @@ func LoadMinIOConfig() *MinIOConfig {
 	return &MinIOConfig{
 		Endpoint:        getEnv("MINIO_ENDPOINT", "localhost:9000"),
 		AccessKeyID:     getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-		SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
+		SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin123"),
 		UseSSL:          getEnv("MINIO_USE_SSL", "false") == "true",
 		BucketName:      getEnv("MINIO_BUCKET_NAME", "belimang-files"),
 	}
