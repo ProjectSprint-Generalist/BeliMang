@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/db"
@@ -21,6 +22,36 @@ func NewMerchantHandler(pool *pgxpool.Pool) *MerchantHandler {
 	return &MerchantHandler{pool: pool}
 }
 
+// isValidImageURL validates if a URL is a proper image URL
+func isValidImageURL(imageURL string) bool {
+	if imageURL == "" {
+		return false
+	}
+
+	// Parse the URL
+	parsedURL, err := url.Parse(imageURL)
+	if err != nil {
+		return false
+	}
+
+	// Check if scheme is http or https
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return false
+	}
+
+	// Check if host is present
+	if parsedURL.Host == "" {
+		return false
+	}
+
+	// Check if path is present (for images, we want at least a path)
+	if parsedURL.Path == "" || parsedURL.Path == "/" {
+		return false
+	}
+
+	return true
+}
+
 func (h *MerchantHandler) CreateMerchant(c *gin.Context) {
 	var payload dto.MerchantCreateRequest
 
@@ -28,6 +59,45 @@ func (h *MerchantHandler) CreateMerchant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Success: false,
 			Error:   "Invalid input: please make sure you have provided a valid name, merchant category, image URL, and location",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Validate merchant category manually since it's a custom type
+	if !dto.ValidMerchantCategories[payload.MerchantCategory] {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid merchant category. Must be one of: SmallRestaurant, MediumRestaurant, LargeRestaurant, MerchandiseRestaurant, BoothKiosk, ConvenienceStore",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Validate location coordinates manually (nested struct validation may not work reliably)
+	if payload.Location.Lat < -90 || payload.Location.Lat > 90 || payload.Location.Lat == 0 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid latitude. Must be between -90 and 90, and not zero",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if payload.Location.Long < -180 || payload.Location.Long > 180 || payload.Location.Long == 0 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid longitude. Must be between -180 and 180, and not zero",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Validate image URL manually (Gin's url validator is too permissive)
+	if !isValidImageURL(payload.ImageURL) {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid image URL. Must be a complete HTTP/HTTPS URL with a path (e.g., https://example.com/image.jpg)",
 			Code:    http.StatusBadRequest,
 		})
 		return
@@ -126,18 +196,26 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 		}
 	}
 
-	// Build query params
-	queryParams := db.MerchantQueryParams{
-		MerchantID:       merchantID,
-		Name:             name,
-		MerchantCategory: merchantCategory,
-		CreatedAt:        createdAt,
-		Limit:            limit,
-		Offset:           offset,
+	// Build query params for generated functions
+	var merchantIDText pgtype.Text
+	if merchantID != "" {
+		merchantIDText = pgtype.Text{String: merchantID, Valid: true}
+	}
+	var nameText pgtype.Text
+	if name != "" {
+		nameText = pgtype.Text{String: name, Valid: true}
+	}
+	var categoryText pgtype.Text
+	if merchantCategory != "" {
+		categoryText = pgtype.Text{String: merchantCategory, Valid: true}
 	}
 
 	// Get total count
-	total, err := queries.CountMerchants(ctx, queryParams)
+	total, err := queries.CountMerchants(ctx, db.CountMerchantsParams{
+		MerchantID:       merchantIDText,
+		MerchantCategory: categoryText,
+		Name:             nameText,
+	})
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -149,7 +227,14 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 	}
 
 	// Get merchants
-	merchants, err := queries.GetMerchants(ctx, queryParams)
+	merchants, err := queries.GetMerchants(ctx, db.GetMerchantsParams{
+		MerchantID:       merchantIDText,
+		MerchantCategory: categoryText,
+		Name:             nameText,
+		CreatedAt:        createdAt,
+		OffsetVal:        offset,
+		LimitVal:         limit,
+	})
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -169,14 +254,27 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 			uuidStr = pgtype.UUID{Bytes: m.ID.Bytes, Valid: true}.String()
 		}
 
+		// Handle lat/long conversion from interface{} to float64
+		var lat, long float64
+		if m.Lat != nil {
+			if latVal, ok := m.Lat.(float64); ok {
+				lat = latVal
+			}
+		}
+		if m.Long != nil {
+			if longVal, ok := m.Long.(float64); ok {
+				long = longVal
+			}
+		}
+
 		merchantData = append(merchantData, dto.MerchantData{
 			MerchantID:       uuidStr,
 			Name:             m.Name,
 			MerchantCategory: string(m.MerchantCategory),
-			ImageURL:         m.ImageURL,
+			ImageURL:         m.ImageUrl,
 			Location: dto.Location{
-				Lat:  m.Lat,
-				Long: m.Long,
+				Lat:  lat,
+				Long: long,
 			},
 			CreatedAt: m.CreatedAt.Time.Format(shared.ISO8601WithNanoseconds),
 		})
@@ -187,7 +285,7 @@ func (h *MerchantHandler) GetMerchants(c *gin.Context) {
 		Meta: dto.MerchantMeta{
 			Limit:  int(limit),
 			Offset: int(offset),
-			Total:  total,
+			Total:  int(total),
 		},
 	})
 }
@@ -220,7 +318,7 @@ func (h *MerchantHandler) CreateMerchantItem(c *gin.Context) {
 	}
 
 	// Check if merchant exists
-	exists, err := queries.GetMerchantByID(ctx, merchantID)
+	exists, err := queries.GetMerchantByID(ctx, merchantUUID)
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -308,7 +406,7 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 	}
 
 	// Check if merchant exists
-	exists, err := queries.GetMerchantByID(ctx, merchantID)
+	exists, err := queries.GetMerchantByID(ctx, merchantUUID)
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -365,19 +463,27 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 		}
 	}
 
-	// Build query params
-	queryParams := db.MerchantItemQueryParams{
-		MerchantID:      merchantID,
-		ItemID:          itemID,
-		Name:            name,
-		ProductCategory: productCategory,
-		CreatedAt:       createdAt,
-		Limit:           limit,
-		Offset:          offset,
+	// Build query params for generated functions
+	var itemIDText pgtype.Text
+	if itemID != "" {
+		itemIDText = pgtype.Text{String: itemID, Valid: true}
+	}
+	var nameText pgtype.Text
+	if name != "" {
+		nameText = pgtype.Text{String: name, Valid: true}
+	}
+	var productCategoryText pgtype.Text
+	if productCategory != "" {
+		productCategoryText = pgtype.Text{String: productCategory, Valid: true}
 	}
 
 	// Get total count
-	total, err := queries.CountMerchantItems(ctx, queryParams)
+	total, err := queries.CountMerchantItems(ctx, db.CountMerchantItemsParams{
+		MerchantID:      merchantUUID,
+		ItemID:          itemIDText,
+		ProductCategory: productCategoryText,
+		Name:            nameText,
+	})
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -389,7 +495,15 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 	}
 
 	// Get merchant items
-	items, err := queries.GetMerchantItems(ctx, queryParams)
+	items, err := queries.GetMerchantItems(ctx, db.GetMerchantItemsParams{
+		MerchantID:      merchantUUID,
+		ItemID:          itemIDText,
+		ProductCategory: productCategoryText,
+		Name:            nameText,
+		CreatedAt:       createdAt,
+		OffsetVal:       offset,
+		LimitVal:        limit,
+	})
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
 		c.JSON(statusCode, dto.ErrorResponse{
@@ -414,7 +528,7 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 			Name:            item.Name,
 			ProductCategory: string(item.ProductCategory),
 			Price:           int(item.Price),
-			ImageURL:        item.ImageURL,
+			ImageURL:        item.ImageUrl,
 			CreatedAt:       item.CreatedAt.Time.Format(shared.ISO8601WithNanoseconds),
 		})
 	}
@@ -424,7 +538,7 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 		Meta: dto.MerchantMeta{
 			Limit:  int(limit),
 			Offset: int(offset),
-			Total:  total,
+			Total:  int(total),
 		},
 	})
 }
@@ -613,15 +727,19 @@ func (h *MerchantHandler) GetNearbyMerchants(c *gin.Context) {
 		}
 
 		// Fetch items for this merchant (no extra filters), unpaged
-		items, err := queries.GetMerchantItems(ctx, db.MerchantItemQueryParams{
-			MerchantID: merchantIDStr,
-			ItemID:     "",
-			Name:       "",
-			// include all product categories
-			ProductCategory: "",
+		var merchantUUIDForItems pgtype.UUID
+		if err := merchantUUIDForItems.Scan(merchantIDStr); err != nil {
+			continue // Skip this merchant if UUID is invalid
+		}
+
+		items, err := queries.GetMerchantItems(ctx, db.GetMerchantItemsParams{
+			MerchantID:      merchantUUIDForItems,
+			ItemID:          pgtype.Text{}, // empty text for no filter
+			ProductCategory: pgtype.Text{}, // empty text for no filter
+			Name:            pgtype.Text{}, // empty text for no filter
 			CreatedAt:       "desc",
-			Limit:           1000,
-			Offset:          0,
+			OffsetVal:       0,
+			LimitVal:        1000,
 		})
 		if err != nil {
 			statusCode, errorMessage := shared.ParseDBResult(err)
@@ -644,7 +762,7 @@ func (h *MerchantHandler) GetNearbyMerchants(c *gin.Context) {
 				Name:            it.Name,
 				ProductCategory: string(it.ProductCategory),
 				Price:           int(it.Price),
-				ImageURL:        it.ImageURL,
+				ImageURL:        it.ImageUrl,
 				CreatedAt:       it.CreatedAt.Time.Format(shared.ISO8601WithNanoseconds),
 			})
 		}
