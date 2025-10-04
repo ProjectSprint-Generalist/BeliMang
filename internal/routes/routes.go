@@ -14,7 +14,9 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 		// ...
 
 		merchant := admin.Group("/merchants")
+		merchant.Use(middleware.AuthMiddleware(), middleware.IsAuthorized("admin"))
 		{
+			merchant.GET("", merchantHandler.GetMerchants)
 			merchant.POST("/", merchantHandler.CreateMerchant)
 		}
 	}
