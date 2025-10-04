@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -10,7 +11,9 @@ import (
 )
 
 func ParseDBResult(err error) (int, string) {
-	if err != nil {
+	log.Printf("ParseDBResult called with error: %v (type: %T)", err, err)
+
+	if err == nil {
 		return http.StatusOK, ""
 	}
 
