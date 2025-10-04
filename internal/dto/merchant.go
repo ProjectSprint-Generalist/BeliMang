@@ -46,3 +46,43 @@ type GetMerchantsResponse struct {
 	Data []MerchantData `json:"data"`
 	Meta MerchantMeta   `json:"meta"`
 }
+
+// ProductCategory enum
+type ProductCategory string
+
+const (
+	Beverage  ProductCategory = "Beverage"
+	Food      ProductCategory = "Food"
+	Snack     ProductCategory = "Snack"
+	Condiment ProductCategory = "Condiment"
+	Additions ProductCategory = "Additions"
+)
+
+// MerchantItemCreateRequest for POST /admin/merchants/:merchantId/items
+type MerchantItemCreateRequest struct {
+	Name            string          `json:"name" binding:"required,min=2,max=30"`
+	ProductCategory ProductCategory `json:"productCategory" binding:"required"`
+	Price           int             `json:"price" binding:"required,min=1"`
+	ImageURL        string          `json:"imageUrl" binding:"required"`
+}
+
+// MerchantItemCreateResponse for POST /admin/merchants/:merchantId/items
+type MerchantItemCreateResponse struct {
+	ItemId string `json:"itemId"`
+}
+
+// MerchantItemData for GET /admin/merchants/:merchantId/items response
+type MerchantItemData struct {
+	ItemId          string `json:"itemId"`
+	Name            string `json:"name"`
+	ProductCategory string `json:"productCategory"`
+	Price           int    `json:"price"`
+	ImageURL        string `json:"imageUrl"`
+	CreatedAt       string `json:"createdAt"`
+}
+
+// GetMerchantItemsResponse for GET /admin/merchants/:merchantId/items
+type GetMerchantItemsResponse struct {
+	Data []MerchantItemData `json:"data"`
+	Meta MerchantMeta       `json:"meta"`
+}

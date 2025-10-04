@@ -183,3 +183,183 @@ func (q *Queries) CountMerchants(ctx context.Context, arg MerchantQueryParams) (
 	err := q.db.QueryRow(ctx, baseQuery, args...).Scan(&total)
 	return total, err
 }
+
+const createMerchantItem = `-- name: CreateMerchantItem :one
+INSERT INTO merchant_items (
+  merchant_id, name, product_category, price, image_url
+) VALUES (
+  $1, $2, $3, $4, $5
+) RETURNING id
+`
+
+type CreateMerchantItemParams struct {
+	MerchantID      pgtype.UUID
+	Name            string
+	ProductCategory ProductCategory
+	Price           int32
+	ImageUrl        string
+}
+
+func (q *Queries) CreateMerchantItem(ctx context.Context, arg CreateMerchantItemParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createMerchantItem,
+		arg.MerchantID,
+		arg.Name,
+		arg.ProductCategory,
+		arg.Price,
+		arg.ImageUrl,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+func (q *Queries) GetMerchantByID(ctx context.Context, merchantID string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM Merchants WHERE ID = $1)`
+	var exists bool
+	err := q.db.QueryRow(ctx, query, merchantID).Scan(&exists)
+	return exists, err
+}
+
+type MerchantItemQueryParams struct {
+	MerchantID      string
+	ItemID          string
+	Name            string
+	ProductCategory string
+	CreatedAt       string
+	Limit           int32
+	Offset          int32
+}
+
+type MerchantItemQueryResult struct {
+	ID              pgtype.UUID
+	Name            string
+	ProductCategory ProductCategory
+	Price           int32
+	ImageURL        string
+	CreatedAt       pgtype.Timestamptz
+}
+
+func (q *Queries) GetMerchantItems(ctx context.Context, arg MerchantItemQueryParams) ([]MerchantItemQueryResult, error) {
+	baseQuery := `
+		SELECT
+			mi.ID,
+			mi.Name,
+			mi.ProductCategory,
+			mi.Price,
+			COALESCE(mi.ImageUrl, '') as ImageURL,
+			mi.CreatedAt
+		FROM Merchant_Items mi
+		WHERE mi.MerchantID = $1
+	`
+
+	counter := 2
+	var conditions []string
+	args := []interface{}{arg.MerchantID}
+
+	// Filter by itemId
+	if arg.ItemID != "" {
+		conditions = append(conditions, fmt.Sprintf("mi.ID = $%d", counter))
+		args = append(args, arg.ItemID)
+		counter++
+	}
+
+	// Filter by name with wildcard search (case insensitive)
+	if arg.Name != "" {
+		conditions = append(conditions, fmt.Sprintf("LOWER(mi.Name) LIKE LOWER($%d)", counter))
+		args = append(args, "%"+arg.Name+"%")
+		counter++
+	}
+
+	// Filter by productCategory
+	if arg.ProductCategory != "" {
+		conditions = append(conditions, fmt.Sprintf("mi.ProductCategory = $%d", counter))
+		args = append(args, arg.ProductCategory)
+		counter++
+	}
+
+	// Build WHERE clause
+	if len(conditions) > 0 {
+		baseQuery += " AND " + strings.Join(conditions, " AND ")
+	}
+
+	// Sort by createdAt
+	if arg.CreatedAt == "asc" {
+		baseQuery += " ORDER BY mi.CreatedAt ASC"
+	} else {
+		baseQuery += " ORDER BY mi.CreatedAt DESC"
+	}
+
+	// Add pagination
+	baseQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", counter, counter+1)
+	args = append(args, arg.Limit, arg.Offset)
+
+	rows, err := q.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []MerchantItemQueryResult
+	for rows.Next() {
+		var r MerchantItemQueryResult
+		if err := rows.Scan(
+			&r.ID,
+			&r.Name,
+			&r.ProductCategory,
+			&r.Price,
+			&r.ImageURL,
+			&r.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (q *Queries) CountMerchantItems(ctx context.Context, arg MerchantItemQueryParams) (int, error) {
+	baseQuery := `
+		SELECT COUNT(*)
+		FROM Merchant_Items mi
+		WHERE mi.MerchantID = $1
+	`
+
+	counter := 2
+	var conditions []string
+	args := []interface{}{arg.MerchantID}
+
+	// Filter by itemId
+	if arg.ItemID != "" {
+		conditions = append(conditions, fmt.Sprintf("mi.ID = $%d", counter))
+		args = append(args, arg.ItemID)
+		counter++
+	}
+
+	// Filter by name with wildcard search (case insensitive)
+	if arg.Name != "" {
+		conditions = append(conditions, fmt.Sprintf("LOWER(mi.Name) LIKE LOWER($%d)", counter))
+		args = append(args, "%"+arg.Name+"%")
+		counter++
+	}
+
+	// Filter by productCategory
+	if arg.ProductCategory != "" {
+		conditions = append(conditions, fmt.Sprintf("mi.ProductCategory = $%d", counter))
+		args = append(args, arg.ProductCategory)
+		counter++
+	}
+
+	// Build WHERE clause
+	if len(conditions) > 0 {
+		baseQuery += " AND " + strings.Join(conditions, " AND ")
+	}
+
+	var total int
+	err := q.db.QueryRow(ctx, baseQuery, args...).Scan(&total)
+	return total, err
+}
