@@ -37,11 +37,8 @@ services:
     image: minio/minio:latest
     container_name: belimang-minio
     environment:
-      - MINIO_ENDPOINT:localhost:9000
-      - MINIO_ACCESS_KEY:minioadmin
-      - MINIO_SECRET_KEY:minioadmin123
-      - MINIO_USE_SSL:false
-      - MINIO_BUCKET_NAME:belimang-files
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
     volumes:
       - minio_data:/data
     ports:
@@ -61,6 +58,12 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_USE_SSL: "false"
+      MINIO_BUCKET_NAME: belimang-files
     ports:
       - 8080:8080
     volumes:
