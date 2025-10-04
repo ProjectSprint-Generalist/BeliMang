@@ -3,7 +3,7 @@ SELECT
   m.id,
   m.name,
   m.merchant_category,
-  COALESCE(m.url, '') AS url,
+  COALESCE(m.image_url, '') AS image_url,
   ST_Y(m.location::geometry) AS lat,
   ST_X(m.location::geometry) AS long,
   m.created_at,
