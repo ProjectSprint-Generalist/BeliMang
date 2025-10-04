@@ -58,7 +58,8 @@ func setupGin(cfg *config.Config, pool *pgxpool.Pool, minioClient *storage.Minio
 	userHandler := handlers.NewUserHandler(pool)
 	merchantHandler := handlers.NewMerchantHandler(pool)
 	imageHandler := handlers.NewImageHandler(pool, minioClient)
-	routes.SetupRoutes(router, adminHandler, userHandler, merchantHandler, imageHandler)
+	estimateHandler := handlers.NewEstimateHandler(pool)
+	routes.SetupRoutes(router, adminHandler, userHandler, merchantHandler, imageHandler, estimateHandler)
 
 	port := cfg.Port
 	if port == "" {
