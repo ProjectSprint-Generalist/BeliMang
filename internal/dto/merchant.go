@@ -92,3 +92,14 @@ type GetNearbyMerchantsRequest struct {
 	Name             string           `json:"name"`
 	MerchantCategory MerchantCategory `json:"merchantCategory"`
 }
+
+// Nearby response types
+type NearbyMerchant struct {
+	Merchant MerchantData       `json:"merchant"`
+	Items    []MerchantItemData `json:"items"`
+}
+
+type GetNearbyMerchantsResponse struct {
+	Data []NearbyMerchant `json:"data"`
+	Meta MerchantMeta     `json:"meta"`
+}
