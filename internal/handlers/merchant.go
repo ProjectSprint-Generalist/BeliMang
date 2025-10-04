@@ -37,10 +37,10 @@ func (h *MerchantHandler) CreateMerchant(c *gin.Context) {
 	ctx := context.Background()
 
 	id, err := queries.CreateMerchant(ctx, db.CreateMerchantParams{
-		payload.Name,
-		db.MerchantCategory(payload.MerchantCategory),
-		payload.ImageURL,
-		payload.Location,
+		Name:             payload.Name,
+		MerchantCategory: db.MerchantCategory(payload.MerchantCategory),
+		ImageUrl:         payload.ImageURL,
+		Location:         payload.Location,
 	})
 	if err != nil {
 		statusCode, errorMessage := shared.ParseDBResult(err)
