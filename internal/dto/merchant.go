@@ -86,3 +86,9 @@ type GetMerchantItemsResponse struct {
 	Data []MerchantItemData `json:"data"`
 	Meta MerchantMeta       `json:"meta"`
 }
+
+type GetNearbyMerchantsRequest struct {
+	MerchantId       string           `json:"merchantId"`
+	Name             string           `json:"name"`
+	MerchantCategory MerchantCategory `json:"merchantCategory"`
+}
