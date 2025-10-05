@@ -45,7 +45,17 @@ type OrderHistory struct {
 	Orders  []OrderDetail `json:"orders"`
 }
 
-type GetOrdersResponse []OrderHistory
+// Response with meta pagination info
+type GetOrdersResponseMeta struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	Total  int `json:"total"`
+}
+
+type GetOrdersResponse struct {
+	Data []OrderHistory        `json:"data"`
+	Meta GetOrdersResponseMeta `json:"meta"`
+}
 
 // Query parameters for GET orders
 type GetOrdersParams struct {
@@ -54,4 +64,5 @@ type GetOrdersParams struct {
 	Offset           int     `form:"offset"`
 	Name             *string `form:"name"`
 	MerchantCategory *string `form:"merchantCategory"`
+	CreatedAt        *string `form:"createdAt"`
 }
