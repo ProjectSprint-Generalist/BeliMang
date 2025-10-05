@@ -64,7 +64,7 @@ const (
 	Beverage  ProductCategory = "Beverage"
 	Food      ProductCategory = "Food"
 	Snack     ProductCategory = "Snack"
-	Condiment ProductCategory = "Condiment"
+	Condiments ProductCategory = "Condiments"
 	Additions ProductCategory = "Additions"
 )
 

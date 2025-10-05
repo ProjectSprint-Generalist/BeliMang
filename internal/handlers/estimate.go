@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"log"
 	"math"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/dto"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/shared"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -129,10 +129,64 @@ func (h *EstimateHandler) Estimate(c *gin.Context) {
 	const speed = 40.0
 	deliveryTime := (maxDistance / speed) * 60
 
+	// Get user from JWT
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Success: false,
+			Error:   "Unauthorized",
+			Code:    http.StatusUnauthorized,
+		})
+		return
+	}
+
+	// Get user ID from database
+	user, err := h.Q.GetUserByUsername(ctx, username.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Success: false,
+			Error:   "User not found",
+			Code:    http.StatusUnauthorized,
+		})
+		return
+	}
+
+	// Round and store values
+	roundedTotalPrice := math.Round(totalPrice*100) / 100
+	roundedDeliveryTime := math.Round(deliveryTime*100) / 100
+
+	// Save estimate data to JSON
+	rawJSON, err := json.Marshal(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Success: false,
+			Error:   "Failed to store estimate data",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	estimateData := rawJSON
+
+	// Store the calculated estimate in the database
+	estimateID, err := h.Q.CreateCalculatedEstimate(ctx, db.CreateCalculatedEstimateParams{
+		UserID:                       user.ID,
+		TotalPrice:                   int32(roundedTotalPrice),
+		EstimatedDeliveryTimeMinutes: int32(roundedDeliveryTime),
+		EstimateData:                 estimateData,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Success: false,
+			Error:   "Failed to store estimate",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, dto.EstimateResponse{
-		TotalPrice:                  math.Round(totalPrice*100) / 100,
-		EstimatedDeliveryTimeInMins: math.Round(deliveryTime*100) / 100,
-		CalculatedEstimateID:        uuid.NewString(),
+		TotalPrice:                  roundedTotalPrice,
+		EstimatedDeliveryTimeInMins: roundedDeliveryTime,
+		CalculatedEstimateID:        estimateID.String(),
 	})
 }
 

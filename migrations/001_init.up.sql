@@ -51,7 +51,7 @@ CREATE TYPE product_category AS ENUM (
   'Beverage',
   'Food',
   'Snack',
-  'Condiment',
+  'Condiments',
   'Additions'
 );
 

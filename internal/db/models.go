@@ -60,11 +60,11 @@ func (ns NullMerchantCategory) Value() (driver.Value, error) {
 type ProductCategory string
 
 const (
-	ProductCategoryBeverage  ProductCategory = "Beverage"
-	ProductCategoryFood      ProductCategory = "Food"
-	ProductCategorySnack     ProductCategory = "Snack"
-	ProductCategoryCondiment ProductCategory = "Condiment"
-	ProductCategoryAdditions ProductCategory = "Additions"
+	ProductCategoryBeverage   ProductCategory = "Beverage"
+	ProductCategoryFood       ProductCategory = "Food"
+	ProductCategorySnack      ProductCategory = "Snack"
+	ProductCategoryCondiments ProductCategory = "Condiments"
+	ProductCategoryAdditions  ProductCategory = "Additions"
 )
 
 func (e *ProductCategory) Scan(src interface{}) error {
