@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/db"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/dto"
@@ -135,6 +136,17 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 		params.Offset = 0
 	}
 
+	// Get total count for pagination metadata
+	totalCount, err := h.Q.GetOrdersCountByUserID(c, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Success: false,
+			Error:   "Failed to get orders count",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	// Get orders from database
 	orders, err := h.Q.GetOrdersByUserID(c, db.GetOrdersByUserIDParams{
 		Column1: user.ID,
@@ -151,21 +163,25 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 	}
 
 	// Process the orders and build response
-	response := h.buildOrdersResponse(c, orders, params)
+	response := h.buildOrdersResponse(c, orders, params, int(totalCount))
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, response.Data)
 }
 
-func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrdersByUserIDRow, params dto.GetOrdersParams) dto.GetOrdersResponse {
+func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrdersByUserIDRow, params dto.GetOrdersParams, totalCount int) dto.GetOrdersResponse {
 	var response dto.GetOrdersResponse
+	response.Meta.Limit = params.Limit
+	response.Meta.Offset = params.Offset
+
+	// Will be updated based on filtered count
+	response.Meta.Total = totalCount
+
 	filteredCount := 0
+	var allFilteredOrders []dto.OrderHistory // To track all filtered orders for accurate total
+	var filteredData []dto.OrderHistory      // To store paginated results
 
+	// First pass: Get all orders that match the filters
 	for _, order := range orders {
-		// Stop if we have enough filtered results
-		if filteredCount >= params.Limit {
-			break
-		}
-
 		orderIDStr := order.ID.String()
 
 		// Parse estimate data
@@ -175,7 +191,7 @@ func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrders
 		}
 
 		// Apply filters
-		if !h.matchesFilters(estimateRequest, params) {
+		if !h.matchesFilters(c, estimateRequest, params) {
 			continue
 		}
 
@@ -190,14 +206,33 @@ func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrders
 			Orders:  orderDetails,
 		}
 
-		response = append(response, orderHistory)
+		allFilteredOrders = append(allFilteredOrders, orderHistory)
+	}
+
+	// Update total count based on filter results
+	response.Meta.Total = len(allFilteredOrders)
+
+	// Second pass: Apply pagination
+	for i, orderHistory := range allFilteredOrders {
+		// Skip orders before offset
+		if i < params.Offset {
+			continue
+		}
+
+		// Stop if we have enough results for this page
+		if filteredCount >= params.Limit {
+			break
+		}
+
+		filteredData = append(filteredData, orderHistory)
 		filteredCount++
 	}
 
+	response.Data = filteredData
 	return response
 }
 
-func (h *OrderHandler) matchesFilters(estimateRequest dto.EstimateRequest, params dto.GetOrdersParams) bool {
+func (h *OrderHandler) matchesFilters(c *gin.Context, estimateRequest dto.EstimateRequest, params dto.GetOrdersParams) bool {
 	// Apply merchant ID filter
 	if params.MerchantID != nil && *params.MerchantID != "" {
 		found := false
@@ -212,9 +247,91 @@ func (h *OrderHandler) matchesFilters(estimateRequest dto.EstimateRequest, param
 		}
 	}
 
-	// For name and merchant category filters, we need to query the database
-	// This would require additional queries to merchants and items
-	// For now, we'll return true for these filters
+	// Apply name filter
+	if params.Name != nil && *params.Name != "" {
+		// We need to check if merchant name or item name contains the search string
+		nameMatch := false
+
+		// Check each order for matching merchant or item name
+		for _, order := range estimateRequest.Orders {
+			// Get merchant details
+			merchantUUID, err := uuid.Parse(order.MerchantId)
+			if err != nil {
+				continue
+			}
+
+			merchantPgUUID := pgtype.UUID{Bytes: merchantUUID, Valid: true}
+			merchant, err := h.Q.GetMerchantDetailsByID(c, merchantPgUUID)
+			if err != nil {
+				continue
+			}
+
+			// Check merchant name (case insensitive)
+			if strings.Contains(strings.ToLower(merchant.Name), strings.ToLower(*params.Name)) {
+				nameMatch = true
+				break
+			}
+
+			// Check item names
+			for _, item := range order.Items {
+				itemUUID, err := uuid.Parse(item.ItemId)
+				if err != nil {
+					continue
+				}
+
+				itemPgUUID := pgtype.UUID{Bytes: itemUUID, Valid: true}
+				merchantItem, err := h.Q.GetMerchantItemByID(c, itemPgUUID)
+				if err != nil {
+					continue
+				}
+
+				// Check item name (case insensitive)
+				if strings.Contains(strings.ToLower(merchantItem.Name), strings.ToLower(*params.Name)) {
+					nameMatch = true
+					break
+				}
+			}
+
+			if nameMatch {
+				break
+			}
+		}
+
+		if !nameMatch {
+			return false
+		}
+	}
+
+	// Apply merchant category filter
+	if params.MerchantCategory != nil && *params.MerchantCategory != "" {
+		categoryMatch := false
+
+		// Check each order for matching merchant category
+		for _, order := range estimateRequest.Orders {
+			// Get merchant details
+			merchantUUID, err := uuid.Parse(order.MerchantId)
+			if err != nil {
+				continue
+			}
+
+			merchantPgUUID := pgtype.UUID{Bytes: merchantUUID, Valid: true}
+			merchant, err := h.Q.GetMerchantDetailsByID(c, merchantPgUUID)
+			if err != nil {
+				continue
+			}
+
+			// Check merchant category
+			if string(merchant.MerchantCategory) == *params.MerchantCategory {
+				categoryMatch = true
+				break
+			}
+		}
+
+		if !categoryMatch {
+			return false
+		}
+	}
+
 	return true
 }
 
