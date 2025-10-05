@@ -431,7 +431,7 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 		"Beverage":  true,
 		"Food":      true,
 		"Snack":     true,
-		"Condiment": true,
+		"Condiments": true,
 		"Additions": true,
 	}
 
