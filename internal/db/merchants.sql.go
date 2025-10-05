@@ -136,6 +136,79 @@ func (q *Queries) GetMerchantByID(ctx context.Context, id pgtype.UUID) (bool, er
 	return exists, err
 }
 
+const getMerchantDetailsByID = `-- name: GetMerchantDetailsByID :one
+SELECT
+  m.id,
+  m.name,
+  m.merchant_category,
+  COALESCE(m.image_url, '') as image_url,
+  ST_Y(m.location::geometry) as lat,
+  ST_X(m.location::geometry) as long,
+  m.created_at
+FROM merchants m
+WHERE m.id = $1::uuid
+`
+
+type GetMerchantDetailsByIDRow struct {
+	ID               pgtype.UUID
+	Name             string
+	MerchantCategory MerchantCategory
+	ImageUrl         string
+	Lat              interface{}
+	Long             interface{}
+	CreatedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) GetMerchantDetailsByID(ctx context.Context, id pgtype.UUID) (GetMerchantDetailsByIDRow, error) {
+	row := q.db.QueryRow(ctx, getMerchantDetailsByID, id)
+	var i GetMerchantDetailsByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.MerchantCategory,
+		&i.ImageUrl,
+		&i.Lat,
+		&i.Long,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getMerchantItemByID = `-- name: GetMerchantItemByID :one
+SELECT
+  mi.id,
+  mi.name,
+  mi.product_category,
+  mi.price,
+  COALESCE(mi.image_url, '') as image_url,
+  mi.created_at
+FROM merchant_items mi
+WHERE mi.id = $1::uuid
+`
+
+type GetMerchantItemByIDRow struct {
+	ID              pgtype.UUID
+	Name            string
+	ProductCategory ProductCategory
+	Price           int32
+	ImageUrl        string
+	CreatedAt       pgtype.Timestamptz
+}
+
+func (q *Queries) GetMerchantItemByID(ctx context.Context, id pgtype.UUID) (GetMerchantItemByIDRow, error) {
+	row := q.db.QueryRow(ctx, getMerchantItemByID, id)
+	var i GetMerchantItemByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProductCategory,
+		&i.Price,
+		&i.ImageUrl,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getMerchantItems = `-- name: GetMerchantItems :many
 SELECT
   mi.id,

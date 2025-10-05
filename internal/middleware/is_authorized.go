@@ -22,3 +22,20 @@ func IsAuthorized(role string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// GetAuthUser retrieves the authenticated user from the Gin context
+func GetAuthUser(c *gin.Context) (dto.AuthUser, bool) {
+	username, userExists := c.Get("username")
+	role, roleExists := c.Get("role")
+	email, emailExists := c.Get("email")
+
+	if !userExists || !roleExists || !emailExists {
+		return dto.AuthUser{}, false
+	}
+
+	return dto.AuthUser{
+		Username: username.(string),
+		Role:     role.(string),
+		Email:    email.(string),
+	}, true
+}

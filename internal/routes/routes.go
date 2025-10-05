@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHandler *handlers.UserHandler, merchantHandler *handlers.MerchantHandler, imageHandler *handlers.ImageHandler, estimateHandler *handlers.EstimateHandler) {
+func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHandler *handlers.UserHandler, merchantHandler *handlers.MerchantHandler, imageHandler *handlers.ImageHandler, estimateHandler *handlers.EstimateHandler, orderHandler *handlers.OrderHandler) {
 	admin := router.Group("/admin")
 	{
 		admin.POST("/register", adminHandler.RegisterAdmin)
@@ -27,6 +27,8 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 		users.POST("/register", userHandler.RegisterUser)
 		users.POST("/login", userHandler.LoginUser)
 		users.POST("/estimate", middleware.AuthMiddleware(), middleware.IsAuthorized("user"), estimateHandler.Estimate)
+		users.POST("/orders", middleware.AuthMiddleware(), middleware.IsAuthorized("user"), orderHandler.CreateOrder)
+		users.GET("/orders", middleware.AuthMiddleware(), middleware.IsAuthorized("user"), orderHandler.GetOrders)
 	}
 
 	image := router.Group("/image")
@@ -37,7 +39,7 @@ func SetupRoutes(router *gin.Engine, adminHandler *handlers.AdminHandler, userHa
 
 	// Nearby merchants endpoint
 	merchants := router.Group("/merchants")
-	merchants.Use(middleware.AuthMiddleware())
+	merchants.Use(middleware.AuthMiddleware(), middleware.IsAuthorized("user"))
 	{
 		// Path pattern: /merchants/nearby/:coords where :coords is "lat,long"
 		merchants.GET("/nearby/:coords", merchantHandler.GetNearbyMerchants)

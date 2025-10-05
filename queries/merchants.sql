@@ -81,3 +81,26 @@ WHERE mi.merchant_id = sqlc.arg(merchant_id)
     sqlc.narg(name)::text IS NULL
     OR LOWER(mi.name) LIKE LOWER('%' || sqlc.narg(name) || '%')
   );
+
+-- name: GetMerchantDetailsByID :one
+SELECT
+  m.id,
+  m.name,
+  m.merchant_category,
+  COALESCE(m.image_url, '') as image_url,
+  ST_Y(m.location::geometry) as lat,
+  ST_X(m.location::geometry) as long,
+  m.created_at
+FROM merchants m
+WHERE m.id = sqlc.arg(id)::uuid;
+
+-- name: GetMerchantItemByID :one
+SELECT
+  mi.id,
+  mi.name,
+  mi.product_category,
+  mi.price,
+  COALESCE(mi.image_url, '') as image_url,
+  mi.created_at
+FROM merchant_items mi
+WHERE mi.id = sqlc.arg(id)::uuid;
