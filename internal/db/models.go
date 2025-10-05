@@ -144,6 +144,15 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type CalculatedEstimate struct {
+	ID                           pgtype.UUID
+	UserID                       pgtype.UUID
+	TotalPrice                   int32
+	EstimatedDeliveryTimeMinutes int32
+	EstimateData                 []byte
+	CreatedAt                    pgtype.Timestamptz
+}
+
 type Image struct {
 	ID        pgtype.UUID
 	Filename  string
@@ -169,6 +178,13 @@ type MerchantItem struct {
 	Price           int32
 	CreatedAt       pgtype.Timestamptz
 	ImageUrl        string
+}
+
+type Order struct {
+	ID                   pgtype.UUID
+	UserID               pgtype.UUID
+	CalculatedEstimateID pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
 }
 
 type User struct {
