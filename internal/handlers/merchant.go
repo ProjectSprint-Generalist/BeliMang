@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/db"
 	"github.com/ProjectSprint-Generalist/BeliMang/internal/dto"
@@ -338,6 +339,51 @@ func (h *MerchantHandler) CreateMerchantItem(c *gin.Context) {
 		return
 	}
 
+	name := strings.TrimSpace(payload.Name)
+	if l := len(name); l < 2 || l > 30 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid name",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	validItemCategories := map[string]bool{
+		"Beverage":   true,
+		"Food":       true,
+		"Snack":      true,
+		"Condiments": true,
+		"Additions":  true,
+	}
+
+	if !validItemCategories[string(payload.ProductCategory)] {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid product category",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if payload.Price < 1 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid price",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if !isValidImageURL(payload.ImageURL) {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Error:   "Invalid image URL",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
 	// Create merchant item
 	itemID, err := queries.CreateMerchantItem(ctx, db.CreateMerchantItemParams{
 		MerchantID:      merchantUUID,
@@ -428,11 +474,11 @@ func (h *MerchantHandler) GetMerchantItems(c *gin.Context) {
 
 	// Validate productCategory if provided
 	validCategories := map[string]bool{
-		"Beverage":  true,
-		"Food":      true,
-		"Snack":     true,
+		"Beverage":   true,
+		"Food":       true,
+		"Snack":      true,
 		"Condiments": true,
-		"Additions": true,
+		"Additions":  true,
 	}
 
 	if productCategory != "" && !validCategories[productCategory] {
