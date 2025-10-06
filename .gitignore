@@ -48,3 +48,5 @@ Thumbs.db
 .tmp/
 tmp/
 
+# Keys
+ps-key.json
