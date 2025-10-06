@@ -57,6 +57,9 @@ type GetOrdersResponse struct {
 	Meta GetOrdersResponseMeta `json:"meta"`
 }
 
+// Direct order history response (for direct array response)
+type OrderHistoryResponse []OrderHistory
+
 // Query parameters for GET orders
 type GetOrdersParams struct {
 	MerchantID       *string `form:"merchantId"`

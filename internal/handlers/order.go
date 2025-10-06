@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -147,11 +148,11 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 		return
 	}
 
-	// Get orders from database
+	// Get orders from database (get more than needed for filtering)
 	orders, err := h.Q.GetOrdersByUserID(c, db.GetOrdersByUserIDParams{
 		Column1: user.ID,
 		Limit:   int32(params.Limit * 2), // Get more to account for filtering
-		Offset:  int32(params.Offset),
+		Offset:  0,                       // Start from beginning, we'll apply offset after filtering
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
@@ -163,22 +164,23 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 	}
 
 	// Process the orders and build response
-	response := h.buildOrdersResponse(c, orders, params, int(totalCount))
+	response, totalFiltered := h.buildOrdersResponse(c, orders, params, int(totalCount))
 
-	c.JSON(http.StatusOK, response.Data)
+	// Add pagination metadata to response headers
+	c.Header("X-Total-Count", fmt.Sprintf("%d", totalFiltered))
+	c.Header("X-Limit", fmt.Sprintf("%d", params.Limit))
+	c.Header("X-Offset", fmt.Sprintf("%d", params.Offset))
+
+	c.JSON(http.StatusOK, response)
 }
 
-func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrdersByUserIDRow, params dto.GetOrdersParams, totalCount int) dto.GetOrdersResponse {
-	var response dto.GetOrdersResponse
-	response.Meta.Limit = params.Limit
-	response.Meta.Offset = params.Offset
-
-	// Will be updated based on filtered count
-	response.Meta.Total = totalCount
-
-	filteredCount := 0
+func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrdersByUserIDRow, params dto.GetOrdersParams, totalCount int) (dto.OrderHistoryResponse, int) {
 	var allFilteredOrders []dto.OrderHistory // To track all filtered orders for accurate total
-	var filteredData []dto.OrderHistory      // To store paginated results
+
+	// Handle empty orders case
+	if len(orders) == 0 {
+		return dto.OrderHistoryResponse{}, 0
+	}
 
 	// First pass: Get all orders that match the filters
 	for _, order := range orders {
@@ -209,27 +211,23 @@ func (h *OrderHandler) buildOrdersResponse(c *gin.Context, orders []db.GetOrders
 		allFilteredOrders = append(allFilteredOrders, orderHistory)
 	}
 
-	// Update total count based on filter results
-	response.Meta.Total = len(allFilteredOrders)
+	totalFiltered := len(allFilteredOrders)
 
-	// Second pass: Apply pagination
-	for i, orderHistory := range allFilteredOrders {
-		// Skip orders before offset
-		if i < params.Offset {
-			continue
-		}
+	// Apply pagination to get the current page
+	start := params.Offset
+	end := start + params.Limit
 
-		// Stop if we have enough results for this page
-		if filteredCount >= params.Limit {
-			break
-		}
-
-		filteredData = append(filteredData, orderHistory)
-		filteredCount++
+	// Ensure we don't go beyond the available orders
+	if start > totalFiltered {
+		start = totalFiltered
+	}
+	if end > totalFiltered {
+		end = totalFiltered
 	}
 
-	response.Data = filteredData
-	return response
+	filteredData := allFilteredOrders[start:end]
+
+	return dto.OrderHistoryResponse(filteredData), totalFiltered
 }
 
 func (h *OrderHandler) matchesFilters(c *gin.Context, estimateRequest dto.EstimateRequest, params dto.GetOrdersParams) bool {
