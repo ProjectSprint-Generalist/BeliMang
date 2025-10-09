@@ -82,12 +82,12 @@ func setupDatabase(cfg *config.Config) *pgxpool.Pool {
 		log.Fatal().Msgf("Failed to parse database URL: %v", err)
 	}
 
-	pgxConfig.MaxConns = 50
-	pgxConfig.MinConns = 20
-	pgxConfig.MaxConnIdleTime = 5 * time.Minute
-	pgxConfig.MaxConnLifetimeJitter = 1 * time.Minute
-	pgxConfig.MaxConnLifetime = 10 * time.Minute
-	pgxConfig.HealthCheckPeriod = 1 * time.Minute
+	pgxConfig.MaxConns = 200
+	pgxConfig.MinConns = 50
+	pgxConfig.MaxConnIdleTime = 10 * time.Minute
+	pgxConfig.MaxConnLifetimeJitter = 2 * time.Minute
+	pgxConfig.MaxConnLifetime = 30 * time.Minute
+	pgxConfig.HealthCheckPeriod = 30 * time.Second
 
 	pool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
 	if err != nil {
