@@ -9,30 +9,11 @@ import (
 	"context"
 )
 
-const createAdmin = `-- name: CreateAdmin :exec
-INSERT INTO users (
-  username, password, email, role
-) VALUES (
-  $1, $2, $3, 'admin'
-)
-`
-
-type CreateAdminParams struct {
-	Username string
-	Password string
-	Email    string
-}
-
-func (q *Queries) CreateAdmin(ctx context.Context, arg CreateAdminParams) error {
-	_, err := q.db.Exec(ctx, createAdmin, arg.Username, arg.Password, arg.Email)
-	return err
-}
-
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (
   username, password, email, role
 ) VALUES (
-  $1, $2, $3, 'user'
+  $1, $2, $3, $4
 )
 `
 
@@ -40,36 +21,30 @@ type CreateUserParams struct {
 	Username string
 	Password string
 	Email    string
+	Role     UserRole
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.Exec(ctx, createUser, arg.Username, arg.Password, arg.Email)
+	_, err := q.db.Exec(ctx, createUser,
+		arg.Username,
+		arg.Password,
+		arg.Email,
+		arg.Role,
+	)
 	return err
 }
 
-const getAdminByUsername = `-- name: GetAdminByUsername :one
-SELECT id, username, password, email, role FROM users where username = $1 AND role = 'admin'
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, password, email, role FROM users where username = $1 AND role = $2
 `
 
-func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRow(ctx, getAdminByUsername, username)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.Password,
-		&i.Email,
-		&i.Role,
-	)
-	return i, err
+type GetUserByUsernameParams struct {
+	Username string
+	Role     UserRole
 }
 
-const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password, email, role FROM users where username = $1 AND role = 'user'
-`
-
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByUsername, username)
+func (q *Queries) GetUserByUsername(ctx context.Context, arg GetUserByUsernameParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUsername, arg.Username, arg.Role)
 	var i User
 	err := row.Scan(
 		&i.ID,

@@ -12,16 +12,19 @@ RUN apk add --no-cache ca-certificates git build-base
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the rest of the source
+# Copy the rest of the source (excluding .env files for security)
 COPY . .
+# Remove .env files from the build context to avoid copying them into the image
+RUN rm -f .env .env.example
 
-# Build static binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/belimang ./
+# Build static binary from cmd/server directory
+WORKDIR /app/cmd/server
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/belimang .
 
 ########################
 # Runtime stage
 ########################
-FROM gcr.io/distroless/base-debian12:nonroot
+FROM gcr.io/distroless/base-debian12:nonroot AS runtime
 
 WORKDIR /
 

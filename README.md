@@ -49,3 +49,32 @@ BeliMang/
 ├── main.go                    # Main function entry point
 └── README.md
 ```
+
+
+
+TODO:
+- [ ] Separate by services
+  - [x] Auth service
+    - [x] Domain layer
+    - [x] DTO layer (optional)
+    - [x] Repository layer
+    - [x] Service layer
+    - [x] Handler layer
+    - [x] routes.go
+    - [x] injector.go
+  - [x] Merchant service
+    - [x] Domain layer
+    - [x] DTO layer (optional)
+    - [x] Repository layer
+    - [x] Service layer
+    - [x] Handler layer
+    - [x] routes.go
+    - [x] injector.go
+  - [x] Order service
+    - [x] Domain layer
+    - [x] DTO layer (optional)
+    - [x] Repository layer
+    - [x] Service layer
+    - [x] Handler layer
+    - [x] routes.go
+    - [x] injector.go
