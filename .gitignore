@@ -50,3 +50,4 @@ tmp/
 
 # Keys
 ps-key.json
+generalist.kubeconfig
