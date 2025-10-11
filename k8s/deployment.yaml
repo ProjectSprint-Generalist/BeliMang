@@ -1,0 +1,53 @@
+# The deployment app, this is where we say to k8s "I want N copies of this containerized app running with these settings"
+# In simple terms, this is the Go app deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: belimang-app
+  labels:
+    app: belimang-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: belimang-app
+  template:
+    metadata:
+      labels:
+        app: belimang-app
+    spec:
+      containers:
+        - name: belimang-app
+          image: belimang:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 250m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: MINIO_ENDPOINT
+              value: minio:9000
+            - name: MINIO_ACCESS_KEY
+              value: minioadmin
+            - name: MINIO_SECRET_KEY
+              value: minioadmin123
+            - name: MINIO_USE_SSL
+              value: "false"
+            - name: MINIO_BUCKET_NAME
+              value: belimang-files
+            - name: DATABASE_HOST
+              value: belimang-postgres
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_USER
+              value: postgres
+            - name: DATABASE_PASSWORD
+              value: postgres
+            - name: DATABASE_NAME
+              value: belimang
+

@@ -1,0 +1,27 @@
+# Define how the deployment app should be accessed
+apiVersion: v1
+kind: Service
+metadata:
+  name: belimang-app 
+spec:
+  selector:
+    app: belimang-app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: belimang-postgres
+spec:
+  selector:
+    app: belimang-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
